@@ -1,6 +1,7 @@
 """
 Day 3 – Step 3: Create Athena workgroup and external table.
 
+- Creates Glue database if it doesn't exist (may have been cleaned up from Day 2)
 - Creates workgroup 'mlops-outlier-detection' with results output location
 - Runs CREATE EXTERNAL TABLE DDL (teaches DDL approach vs Day 2's Crawler)
 - Verifies with SELECT COUNT(*)
@@ -89,9 +90,35 @@ def get_query_results(query_execution_id: str) -> list[list[str]]:
 # Steps
 # ---------------------------------------------------------------------------
 
+def create_database() -> None:
+    """Create Glue database if it doesn't exist (may have been cleaned up)."""
+    print("[1/4] Ensuring Glue database exists ...")
+
+    ddl = f"CREATE DATABASE IF NOT EXISTS {DATABASE_NAME}"
+
+    # Need a temporary output location for this bootstrap query.
+    # Workgroup might not exist yet, so use a direct OutputLocation.
+    try:
+        resp = athena_client.start_query_execution(
+            QueryString=ddl,
+            ResultConfiguration={"OutputLocation": OUTPUT_LOCATION},
+        )
+        result = wait_for_query(resp["QueryExecutionId"])
+        state = result["Status"]["State"]
+        if state == "SUCCEEDED":
+            print(f"  CREATED  Database: {DATABASE_NAME}")
+        else:
+            reason = result["Status"].get("StateChangeReason", "unknown")
+            print(f"  FAIL     CREATE DATABASE: {state} – {reason}")
+            sys.exit(1)
+    except ClientError as e:
+        print(f"  FAIL     {e.response['Error']['Message']}")
+        sys.exit(1)
+
+
 def create_workgroup() -> None:
     """Create Athena workgroup with output location."""
-    print("[1/3] Creating Athena workgroup ...")
+    print("\n[2/4] Creating Athena workgroup ...")
     try:
         athena_client.create_work_group(
             Name=WORKGROUP,
@@ -107,7 +134,7 @@ def create_workgroup() -> None:
         print(f"  CREATED  Workgroup: {WORKGROUP}")
         print(f"           Output:    {OUTPUT_LOCATION}")
     except ClientError as e:
-        if "already exists" in str(e).lower():
+        if "already" in str(e).lower():
             print(f"  EXISTS   Workgroup: {WORKGROUP}")
         else:
             print(f"  FAIL     {e.response['Error']['Message']}")
@@ -116,12 +143,12 @@ def create_workgroup() -> None:
 
 def create_external_table() -> None:
     """Create external table via DDL (alternative to Glue Crawler)."""
-    print("\n[2/3] Creating external table via DDL ...")
+    print("\n[3/4] Creating external table via DDL ...")
 
     ddl = f"""
     CREATE EXTERNAL TABLE IF NOT EXISTS {DATABASE_NAME}.ml_training_runs (
         run_id           STRING,
-        timestamp         STRING,
+        `timestamp`      STRING,
         model_name       STRING,
         framework        STRING,
         dataset_size     INT,
@@ -148,7 +175,7 @@ def create_external_table() -> None:
 
 def verify_table() -> None:
     """Run SELECT COUNT(*) to verify data is accessible."""
-    print("\n[3/3] Verifying table ...")
+    print("\n[4/4] Verifying table ...")
 
     sql = f"SELECT COUNT(*) AS row_count FROM {DATABASE_NAME}.ml_training_runs"
     result = run_query(sql, "SELECT COUNT(*)")
@@ -173,6 +200,7 @@ def verify_table() -> None:
 def main() -> None:
     print("\n=== Day 3 · Step 3: Setup Athena Workgroup & Table ===\n")
 
+    create_database()
     create_workgroup()
     create_external_table()
     verify_table()

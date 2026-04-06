@@ -7,17 +7,17 @@
 SELECT
     run_id,
     model_name,
-    timestamp,
+    "timestamp",
     accuracy,
     loss,
-    LAG(accuracy) OVER (PARTITION BY model_name ORDER BY timestamp) AS prev_accuracy,
-    LAG(loss) OVER (PARTITION BY model_name ORDER BY timestamp) AS prev_loss,
-    ROUND(accuracy - LAG(accuracy) OVER (PARTITION BY model_name ORDER BY timestamp), 4) AS accuracy_delta,
-    ROUND(loss - LAG(loss) OVER (PARTITION BY model_name ORDER BY timestamp), 4) AS loss_delta,
+    LAG(accuracy) OVER (PARTITION BY model_name ORDER BY "timestamp") AS prev_accuracy,
+    LAG(loss) OVER (PARTITION BY model_name ORDER BY "timestamp") AS prev_loss,
+    ROUND(accuracy - LAG(accuracy) OVER (PARTITION BY model_name ORDER BY "timestamp"), 4) AS accuracy_delta,
+    ROUND(loss - LAG(loss) OVER (PARTITION BY model_name ORDER BY "timestamp"), 4) AS loss_delta,
     CASE
-        WHEN ABS(accuracy - LAG(accuracy) OVER (PARTITION BY model_name ORDER BY timestamp)) > 0.1
+        WHEN ABS(accuracy - LAG(accuracy) OVER (PARTITION BY model_name ORDER BY "timestamp")) > 0.1
         THEN 'DRIFT'
         ELSE 'stable'
     END AS drift_flag
 FROM mlops_demo_db.ml_training_runs
-ORDER BY model_name, timestamp;
+ORDER BY model_name, "timestamp";

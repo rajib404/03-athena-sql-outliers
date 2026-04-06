@@ -358,17 +358,17 @@ WITH sequenced AS (
     SELECT
         run_id,
         model_name,
-        timestamp,
+        "timestamp",
         accuracy,
         loss,
-        LAG(accuracy) OVER (PARTITION BY model_name ORDER BY timestamp) AS prev_accuracy,
-        LAG(loss) OVER (PARTITION BY model_name ORDER BY timestamp) AS prev_loss
+        LAG(accuracy) OVER (PARTITION BY model_name ORDER BY "timestamp") AS prev_accuracy,
+        LAG(loss) OVER (PARTITION BY model_name ORDER BY "timestamp") AS prev_loss
     FROM {DATABASE_NAME}.ml_training_runs
 )
 SELECT
     run_id,
     model_name,
-    timestamp,
+    "timestamp",
     ROUND(accuracy, 4) AS accuracy,
     ROUND(prev_accuracy, 4) AS prev_accuracy,
     ROUND(accuracy - prev_accuracy, 4) AS accuracy_delta,
@@ -417,7 +417,8 @@ def main() -> None:
 
         state = result["Status"]["State"]
         if state != "SUCCEEDED":
-            print(f"\n  FAIL     {state}")
+            reason = result["Status"].get("StateChangeReason", "unknown")
+            print(f"\n  FAIL     {state}: {reason}")
             continue
 
         print(f" done.\n")
